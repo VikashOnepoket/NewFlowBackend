@@ -414,6 +414,33 @@ app.get('/technical_executive_details', verifyToken, (req, res) => {
     });
 });
 
+app.post('/technical_executive_login', async (req, res) => {
+    const { phone_number } = req.body;
+    try {
+        if (!phone_number || phone_number.length !== 10 || !/^\d{10}$/.test(phone_number)) {
+            return res.status(400).send("Invalid phone number. Please enter 10 digits without +91 or 0.");
+        }
+      
+        db.query('SELECT * FROM technical_executive_details WHERE phone_number = ?', [phone_number], (err, result) => {
+            if (err) {
+                console.log("Error querying the database:", err);
+                return res.status(500).send("Database error");
+            }
+    
+            if (result.length === 0) {
+                console.log(`User with phone number ${phone_number} not found in database`);
+                return res.status(400).send({ error: "User Not Registered!" });
+            }
+    
+            console.log(`User found: ${JSON.stringify(result[0])}`);
+            const otp = Math.floor(100000 + Math.random() * 900000);
+            res.status(200).send({ message: 'OTP sent successfully', otp });
+        });
+    } catch (error) {
+        console.log(error);
+        res.status(500).send({ error: 'Something went wrong' });
+    }
+});
 
 app.post('/submit_warranty_claim_form', jwtverifyToken, upload.single('image'), (req, res) => {
     const id = req.user;
