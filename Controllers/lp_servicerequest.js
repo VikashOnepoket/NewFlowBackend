@@ -444,37 +444,84 @@ app.post('/technical_executive_login', async (req, res) => {
     }
 });
 
+// app.post('/technical_executive_verify_otp', async (req, res) => {
+//     const { phone_number, otp } = req.body;
+//     try {
+//         if (!phone_number || phone_number.length !== 10 || !/^\d{10}$/.test(phone_number)) {
+//             return res.status(400).send("Invalid phone number. Please enter 10 digits without +91 or 0.");
+//         }
+//         if (!otp || otp.length !== 4 || !/^\d{4}$/.test(otp)) {
+//             return res.status(400).send("Invalid OTP. Please enter 4 digits.");
+//         }        
+//         db.query('SELECT * FROM technical_executive_details WHERE phone_number = ?', [phone_number], async (err, result) => {
+//             if (err) {
+//                 console.log("Error querying the database:", err);
+//                 return res.status(500).send("Database error");
+//             }
+//             if (result.length === 0) {
+//                 console.log(`User with phone number ${phone_number} not found in database`);
+//                 return res.status(400).send({ error: "User Not Registered!" });
+//             }
+//             console.log(`User found: ${JSON.stringify(result[0])}`);
+//             const response = await micro_service.verifyOTP(phone_number, otp, "Technical Executive");
+//             if (response === "OTP verified") {
+//                 res.status(200).send({ message: 'OTP verified successfully'});
+//                 } else {
+//                     res.status(400).send({ error: response });
+//                 }
+//         });
+//     } catch (error) {
+//         console.log(error);
+//         res.status(500).send({ error: 'Something went wrong' });
+//     }
+// });
+
 app.post('/technical_executive_verify_otp', async (req, res) => {
     const { phone_number, otp } = req.body;
+
     try {
+        // Validate phone number
         if (!phone_number || phone_number.length !== 10 || !/^\d{10}$/.test(phone_number)) {
-            return res.status(400).send("Invalid phone number. Please enter 10 digits without +91 or 0.");
+            return res.status(400).send({ error: "Invalid phone number", message: "Please enter 10 digits without +91 or 0." });
         }
+
+        // Validate OTP format
         if (!otp || otp.length !== 4 || !/^\d{4}$/.test(otp)) {
-            return res.status(400).send("Invalid OTP. Please enter 4 digits.");
-        }        
-        db.query('SELECT * FROM technical_executive_details WHERE phone_number = ?', [phone_number], async (err, result) => {
-            if (err) {
-                console.log("Error querying the database:", err);
-                return res.status(500).send("Database error");
-            }
-            if (result.length === 0) {
-                console.log(`User with phone number ${phone_number} not found in database`);
-                return res.status(400).send({ error: "User Not Registered!" });
-            }
-            console.log(`User found: ${JSON.stringify(result[0])}`);
+            return res.status(400).send({ error: "Invalid OTP", message: "Please enter a 4-digit OTP." });
+        }
+
+        // Verify OTP with microservice
+        try {
             const response = await micro_service.verifyOTP(phone_number, otp, "Technical Executive");
+
             if (response === "OTP verified") {
-                res.status(200).send({ message: 'OTP verified successfully'});
-                } else {
-                    res.status(400).send({ error: response });
-                }
-        });
+                return res.status(200).send({ message: "OTP verified successfully" });
+            }
+        } catch (error) {
+            if (error.message === "Wrong OTP!") {
+                return res.status(400).send({
+                    error: "Wrong OTP!",
+                    message: `Incorrect OTP.`
+                });
+            } else if (error.message.includes("Wrong OTP entered too many times")) {
+                return res.status(403).send({
+                    error: "Too many incorrect attempts!",
+                    message: "You have exceeded the maximum number of OTP attempts. Please request a new OTP."
+                });
+            } else if (error.message === "OTP Expired!") {
+                return res.status(400).send({ error: "OTP Expired!", message: "Your OTP has expired. Please request a new one." });
+            } else if (error.message === "OTP already Verified!") {
+                return res.status(400).send({ error: "OTP already Verified!", message: "This OTP has already been used." });
+            } else if (error.message === "Block User") {
+                return res.status(403).send({ error: "User is blocked!", message: "You have entered the wrong OTP too many times. Please contact support." });
+            }
+
+            return res.status(500).send({ error: "Server Error", message: "Something went wrong. Please try again." });
+        }
     } catch (error) {
-        console.log(error);
-        res.status(500).send({ error: 'Something went wrong' });
+        return res.status(500).send({ error: "Server Error", message: "Something went wrong. Please try again." });
     }
-});
+});  
 
 app.post('/submit_warranty_claim_form', jwtverifyToken, upload.single('image'), (req, res) => {
     const id = req.user;
