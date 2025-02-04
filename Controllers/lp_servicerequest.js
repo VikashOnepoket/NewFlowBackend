@@ -2,6 +2,8 @@ const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
+const MicroService = require('../MicroServices/services');
+const micro_service = new MicroService();
 
 
 
@@ -421,7 +423,7 @@ app.post('/technical_executive_login', async (req, res) => {
             return res.status(400).send("Invalid phone number. Please enter 10 digits without +91 or 0.");
         }
       
-        db.query('SELECT * FROM technical_executive_details WHERE phone_number = ?', [phone_number], (err, result) => {
+        db.query('SELECT * FROM technical_executive_details WHERE phone_number = ?', [phone_number], async (err, result) => {
             if (err) {
                 console.log("Error querying the database:", err);
                 return res.status(500).send("Database error");
@@ -433,8 +435,8 @@ app.post('/technical_executive_login', async (req, res) => {
             }
     
             console.log(`User found: ${JSON.stringify(result[0])}`);
-            const otp = Math.floor(100000 + Math.random() * 900000);
-            res.status(200).send({ message: 'OTP sent successfully', otp });
+            await micro_service.sendOTP (phone_number, "Technical Executive", false, "63bd363ed6fc0537b36cc522");
+            res.status(200).send({ message: 'OTP sent successfully'});
         });
     } catch (error) {
         console.log(error);
