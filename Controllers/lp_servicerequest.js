@@ -459,7 +459,24 @@ app.post('/technical_executive_verify_otp', async (req, res) => {
             const response = await micro_service.verifyOTP(phone_number, otp, "Technical Executive");
 
             if (response === "OTP verified") {
-                return res.status(200).send({ message: "OTP verified successfully" });
+                // Fetch the technical executive's details from the database
+                db.query('SELECT id FROM technical_executive_details WHERE phone_number = ?', [phone_number], (err, result) => {
+                    if (err) {
+                        return res.status(500).send({ error: "Database error", message: "Something went wrong. Please try again." });
+                    }
+
+                    if (result.length === 0) {
+                        return res.status(400).send({ error: "User Not Found!", message: "The user does not exist in the database." });
+                    }
+
+                    const technicalExecutiveId = result[0].id;
+
+                    // Send the response with the technical executive's ID
+                    return res.status(200).send({ 
+                        message: "OTP verified successfully", 
+                        technical_executive_id: technicalExecutiveId 
+                    });
+                });
             }
         } catch (error) {
             if (error.message === "Wrong OTP!") {
